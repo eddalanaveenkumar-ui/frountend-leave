@@ -192,7 +192,7 @@
 
             try {
                 // HOD Sees 'Advisor Approved' by default. If History, fetch ALL for department.
-                let url = `${API_BASE_URL}/leaves?dept=${dept}`;
+                let url = `${API_BASE_URL}/leaves?dept=${encodeURIComponent(dept)}`;
                 if (!showHistory) {
                     url += `&status=Advisor Approved`;
                 }
@@ -210,7 +210,7 @@
 
         const loadAttendanceStats = async (dept) => {
             try {
-                const response = await fetch(`${API_BASE_URL}/stats/attendance?dept=${dept}`);
+                const response = await fetch(`${API_BASE_URL}/stats/attendance?dept=${encodeURIComponent(dept)}`);
                 if (response.ok) {
                     const stats = await response.json();
                     document.getElementById('hodStats').innerHTML = `

@@ -190,7 +190,7 @@
 
             try {
                 // Advisors see 'Pending' by default. If History, fetch ALL for department.
-                let url = `${API_BASE_URL}/leaves?dept=${dept}`;
+                let url = `${API_BASE_URL}/leaves?dept=${encodeURIComponent(dept)}`;
                 if (!showHistory) {
                     url += `&status=Pending`;
                 }

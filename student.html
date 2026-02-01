@@ -197,7 +197,7 @@
 
         // Load student data and requests
         const loadStudentData = (student) => {
-            document.getElementById('dashboardGreeting').textContent = `Welcome, ${student.name}`;
+            document.getElementById('dashboardGreeting').textContent = `Welcome, ${student.name} (${student.dept} - Year ${student.year})`;
             document.getElementById('dashboardAvatar').textContent = student.name.charAt(0);
 
             // Pre-fill form

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Management Portal - PEC Leave Management</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+
+        <!-- Management Login -->
+        <div id="managementLoginScreen" class="screen">
+            <div class="dashboard-header">
+                <h2><i class="fas fa-users-cog"></i> Management Login</h2>
+                <a href="index.html" class="btn btn-secondary" style="width: auto; padding: 10px 20px;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </div>
+
+            <form onsubmit="managementLogin(event)">
+                <div class="form-group">
+                    <label><i class="fas fa-id-card"></i> Management ID</label>
+                    <input type="text" id="mUserId" placeholder="Enter management ID" required>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-key"></i> Password</label>
+                    <input type="password" id="mPassword" placeholder="Enter password" required>
+                </div>
+
+                <button type="submit" class="btn">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+            </form>
+        </div>
+
+        <!-- Management Dashboard -->
+        <div id="managementDashboard" class="screen">
+            <div class="dashboard-header">
+                <h2><i class="fas fa-users-cog"></i> Management Dashboard</h2>
+                <div class="user-info">
+                    <button class="btn btn-success" onclick="loadManagementRequests()"
+                        style="width:auto; padding:8px 15px;">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats" id="managementStats"></div>
+
+            <div class="menu-bar">
+                <select id="managementFilterDept" onchange="filterManagementByDept()">
+                    <option value="">All Departments</option>
+                    <option value="CSC">CSE</option>
+                    <option value="ECE">ECE</option>
+                    <option value="CYBER">Cyber Security</option>
+                    <option value="AI&ML">AI&ML</option>
+                    <option value="AL&DS">AI&DS</option>
+                    <option value="CSBS">CSBS</option>
+                    <option value="IT">IT</option>
+                    <option value="EEE">EEE</option>
+                    <option value="MECHANICAL">Mechanical</option>
+                    <option value="BIOTECH">Biotech</option>
+                </select>
+                <select id="managementFilterStatus" onchange="filterManagementByStatus()">
+                    <option value="">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Advisor Approved">Advisor Approved</option>
+                    <option value="HOD Approved">HOD Approved</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+                <input type="date" id="managementFilterDate" onchange="filterManagementByDate()">
+            </div>
+
+            <div class="table-container">
+                <table id="managementTable">
+                    <thead>
+                        <tr>
+                            <th>Roll No</th>
+                            <th>Name</th>
+                            <th>Department</th>
+                            <th>Year</th>
+                            <th>Applied Date</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Reason</th>
+                            <th>Email</th>
+                            <th>Parent Mobile</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <button class="btn btn-danger logout-btn" onclick="logout('management')">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+
+    </div>
+    <script src="common.js"></script>
+    <script>
+        // Constants
+        const LOGIN_SCREEN = document.getElementById('managementLoginScreen');
+        const DASHBOARD_SCREEN = document.getElementById('managementDashboard');
+
+        window.onload = () => {
+            initializeData();
+            checkLogin();
+        };
+
+        const checkLogin = () => {
+            const user = checkAuth('management');
+            if (user) {
+                LOGIN_SCREEN.classList.remove('active');
+                DASHBOARD_SCREEN.classList.add('active');
+                loadManagementRequests();
+            } else {
+                LOGIN_SCREEN.classList.add('active');
+                DASHBOARD_SCREEN.classList.remove('active');
+            }
+        };
+
+        // Management login
+        const managementLogin = (e) => {
+            e.preventDefault();
+            const id = document.getElementById('mUserId').value;
+            const password = document.getElementById('mPassword').value;
+
+            const management = JSON.parse(localStorage.getItem('management'));
+            const user = management.find(m => m.id === id && m.password === password);
+
+            if (user) {
+                localStorage.setItem('currentManagement', JSON.stringify(user));
+                checkLogin();
+                showNotification('Welcome, Management!', 'success');
+            } else {
+                showNotification('Invalid management credentials!', 'error');
+            }
+        };
+
+        // Load management requests
+        const loadManagementRequests = () => {
+            const applications = JSON.parse(localStorage.getItem('leaveApplications'));
+
+            // Update stats
+            document.getElementById('managementStats').innerHTML = `
+        <div class="stat-card">
+          <h3>${applications.filter(app => app.status === 'Pending').length}</h3>
+          <p>Pending Requests</p>
+        </div>
+        <div class="stat-card">
+          <h3>${applications.filter(app => app.status === 'Advisor Approved').length}</h3>
+          <p>Advisor Approved</p>
+        </div>
+        <div class="stat-card">
+          <h3>${applications.filter(app => app.status === 'HOD Approved').length}</h3>
+          <p>HOD Approved</p>
+        </div>
+        <div class="stat-card">
+          <h3>${applications.length}</h3>
+          <p>Total Applications</p>
+        </div>
+      `;
+
+            const tbody = document.querySelector('#managementTable tbody');
+            tbody.innerHTML = '';
+
+            if (applications.length === 0) {
+                tbody.innerHTML = `
+          <tr>
+            <td colspan="11" style="text-align: center; padding: 40px;">
+              <i class="fas fa-database" style="font-size: 3rem; color: #ddd; margin-bottom: 20px; display: block;"></i>
+              <h3 style="color: #7f8c8d;">No data available</h3>
+            </td>
+          </tr>
+        `;
+                return;
+            }
+
+            applications.sort((a, b) => new Date(b.appliedDate) - new Date(a.appliedDate));
+
+            applications.forEach(app => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+          <td>${app.regNo}</td>
+          <td>${app.name}</td>
+          <td>${app.dept}</td>
+          <td>${app.year}</td>
+          <td>${app.appliedDate}</td>
+          <td>${app.fromDate}</td>
+          <td>${app.toDate}</td>
+          <td>${app.reason}</td>
+          <td>${app.studentEmail}</td>
+          <td>${app.parentMobile}</td>
+          <td><span class="status status-${app.status.toLowerCase().replace(' ', '-')}">${app.status}</span></td>
+        `;
+                tbody.appendChild(row);
+            });
+        };
+
+        // Filter functions for management
+        const filterManagementByDept = () => {
+            const filterDept = document.getElementById('managementFilterDept').value;
+            const rows = document.querySelectorAll('#managementTable tbody tr');
+
+            rows.forEach(row => {
+                const dept = row.cells[2].textContent;
+                if (!filterDept || dept === filterDept) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        };
+
+        const filterManagementByStatus = () => {
+            const filterStatus = document.getElementById('managementFilterStatus').value;
+            const rows = document.querySelectorAll('#managementTable tbody tr');
+
+            rows.forEach(row => {
+                const statusElement = row.cells[10].querySelector('.status');
+                const status = statusElement ? statusElement.textContent : '';
+                if (!filterStatus || status === filterStatus) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        };
+
+        const filterManagementByDate = () => {
+            const filterDate = document.getElementById('managementFilterDate').value;
+            const rows = document.querySelectorAll('#managementTable tbody tr');
+
+            rows.forEach(row => {
+                const rowDate = row.cells[4].textContent;
+                if (!filterDate || rowDate === filterDate) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        };
+    </script>
+</body>
+
+</html>

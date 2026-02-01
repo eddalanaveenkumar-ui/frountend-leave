@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal - PEC Leave Management</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+
+        <!-- Admin Login -->
+        <div id="adminLoginScreen" class="screen">
+            <div class="dashboard-header">
+                <h2><i class="fas fa-shield-alt"></i> Admin Login</h2>
+                <a href="index.html" class="btn btn-secondary" style="width: auto; padding: 10px 20px;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </div>
+
+            <form onsubmit="adminLogin(event)">
+                <div class="form-group">
+                    <label><i class="fas fa-user-shield"></i> Admin ID</label>
+                    <input type="text" id="adminUserId" placeholder="Enter admin ID" value="admin" required>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-key"></i> Password</label>
+                    <input type="password" id="adminPassword" placeholder="Enter password" value="admin" required>
+                </div>
+
+                <button type="submit" class="btn">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+            </form>
+        </div>
+
+        <!-- Admin Dashboard -->
+        <div id="adminDashboard" class="screen">
+            <div class="dashboard-header">
+                <h2><i class="fas fa-shield-alt"></i> Admin Dashboard</h2>
+                <div class="user-info">
+                    <div class="user-avatar">A</div>
+                    <button class="btn btn-warning" onclick="showModal('loadDataModal')"
+                        style="width:auto; padding:8px 15px;">
+                        <i class="fas fa-upload"></i> Load Data
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats" id="adminStats"></div>
+
+            <div class="menu-bar">
+                <button class="btn btn-success" onclick="loadSampleData()">
+                    <i class="fas fa-database"></i> Load Sample Data
+                </button>
+                <button class="btn btn-info" onclick="showModal('addStudentModal')">
+                    <i class="fas fa-user-plus"></i> Add Student
+                </button>
+                <button class="btn btn-info" onclick="showModal('addStaffModal')">
+                    <i class="fas fa-user-tie"></i> Add Staff
+                </button>
+                <button class="btn btn-secondary" onclick="resetCredentials()">
+                    <i class="fas fa-key"></i> Reset Credentials
+                </button>
+                <button class="btn btn-success" onclick="exportData()">
+                    <i class="fas fa-download"></i> Export Data
+                </button>
+                <button class="btn btn-danger" onclick="clearAllData()">
+                    <i class="fas fa-trash-alt"></i> Clear All
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table id="adminTable">
+                    <thead>
+                        <tr>
+                            <th>Roll No</th>
+                            <th>Name</th>
+                            <th>Department</th>
+                            <th>Year</th>
+                            <th>DOB (Password)</th>
+                            <th>Email</th>
+                            <th>Parent Mobile</th>
+                            <th>Advisor ID</th>
+                            <th>HOD ID</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <button class="btn btn-danger logout-btn" onclick="logout('admin')">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+
+        <!-- Load Data Modal -->
+        <div id="loadDataModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-upload"></i> Load Student Data</h3>
+                    <button class="close-modal" onclick="closeModal('loadDataModal')">&times;</button>
+                </div>
+
+                <div class="csv-instructions">
+                    <h4><i class="fas fa-info-circle"></i> CSV Format Instructions:</h4>
+                    <p>Upload a CSV file with the following columns (in order):</p>
+                    <ul>
+                        <li><strong>regNo</strong>: Student Register Number (e.g., PECCSC12001)</li>
+                        <li><strong>name</strong>: Student Full Name</li>
+                        <li><strong>dept</strong>: Department Code (CSC, ECE, etc.)</li>
+                        <li><strong>year</strong>: Year (1, 2, 3, or 4)</li>
+                        <li><strong>dob</strong>: Date of Birth (YYYY-MM-DD)</li>
+                        <li><strong>email</strong>: Student Email</li>
+                        <li><strong>parentMobile</strong>: Parent Mobile Number</li>
+                    </ul>
+                    <p><strong>Note:</strong> First row should be headers. DOB will be used as password.</p>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-file-csv"></i> Select CSV File</label>
+                    <input type="file" id="csvFile" accept=".csv" onchange="previewCSV()">
+                </div>
+
+                <div id="csvPreview" class="csv-preview" style="display:none;">
+                    <h4>Preview (First 5 rows):</h4>
+                    <div id="previewTable"></div>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-cogs"></i> Import Options</label>
+                    <div style="margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <input type="radio" name="importOption" value="replace" checked> Replace All Existing Data
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="radio" name="importOption" value="append"> Append to Existing Data
+                        </label>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="processCSV()">
+                        <i class="fas fa-check"></i> Import Data
+                    </button>
+                    <button class="btn btn-secondary" onclick="closeModal('loadDataModal')">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Student Modal -->
+        <div id="addStudentModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-user-plus"></i> Add New Student</h3>
+                    <button class="close-modal" onclick="closeModal('addStudentModal')">&times;</button>
+                </div>
+
+                <form onsubmit="addStudent(event)">
+                    <div class="form-group">
+                        <label><i class="fas fa-id-card"></i> Register Number</label>
+                        <input type="text" id="newRegNo" placeholder="e.g., PECCSC12001" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Full Name</label>
+                        <input type="text" id="newName" placeholder="Enter student name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-building"></i> Department</label>
+                        <select id="newDept" required>
+                            <option value="">Select Department</option>
+                            <option value="CSC">Computer Science & Engineering</option>
+                            <option value="ECE">Electronics & Communication</option>
+                            <option value="CYBER">Cyber Security</option>
+                            <option value="AI&ML">Artificial Intelligence & Machine Learning</option>
+                            <option value="AL&DS">AI & Data Science</option>
+                            <option value="CSBS">Computer Science (Business Systems)</option>
+                            <option value="IT">Information Technology</option>
+                            <option value="EEE">Electrical & Electronics</option>
+                            <option value="MECHANICAL">Mechanical Engineering</option>
+                            <option value="BIOTECH">Biotechnology</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-graduation-cap"></i> Year</label>
+                        <select id="newYear" required>
+                            <option value="">Select Year</option>
+                            <option value="1">1st Year</option>
+                            <option value="2">2nd Year</option>
+                            <option value="3">3rd Year</option>
+                            <option value="4">4th Year</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-calendar-alt"></i> Date of Birth (Password)</label>
+                        <input type="date" id="newDOB" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> Email</label>
+                        <input type="email" id="newEmail" placeholder="student@pec.edu" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-phone"></i> Parent Mobile Number</label>
+                        <input type="tel" id="newParentMobile" placeholder="+91XXXXXXXXXX" required>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Save Student
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('addStudentModal')">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Staff Modal -->
+        <div id="addStaffModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-user-tie"></i> Add Staff Member</h3>
+                    <button class="close-modal" onclick="closeModal('addStaffModal')">&times;</button>
+                </div>
+
+                <form onsubmit="addStaff(event)">
+                    <div class="form-group">
+                        <label><i class="fas fa-user-tag"></i> Staff Type</label>
+                        <select id="staffType" required onchange="updateStaffFields()">
+                            <option value="">Select Type</option>
+                            <option value="advisor">Class Advisor</option>
+                            <option value="hod">HOD</option>
+                            <option value="management">Management</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="staffDeptGroup" style="display: none;">
+                        <label><i class="fas fa-building"></i> Department</label>
+                        <select id="staffDept">
+                            <option value="">Select Department</option>
+                            <option value="CSC">Computer Science & Engineering</option>
+                            <option value="ECE">Electronics & Communication</option>
+                            <option value="CYBER">Cyber Security</option>
+                            <option value="AI&ML">Artificial Intelligence & Machine Learning</option>
+                            <option value="AL&DS">AI & Data Science</option>
+                            <option value="CSBS">Computer Science (Business Systems)</option>
+                            <option value="IT">Information Technology</option>
+                            <option value="EEE">Electrical & Electronics</option>
+                            <option value="MECHANICAL">Mechanical Engineering</option>
+                            <option value="BIOTECH">Biotechnology</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-id-card"></i> Staff ID</label>
+                        <input type="text" id="staffId" placeholder="Enter staff ID" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Full Name</label>
+                        <input type="text" id="staffName" placeholder="Enter staff name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-key"></i> Password</label>
+                        <input type="password" id="staffPassword" placeholder="Enter password" required>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Save Staff
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('addStaffModal')">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+    <script src="common.js"></script>
+    <script>
+        // Constants
+        const LOGIN_SCREEN = document.getElementById('adminLoginScreen');
+        const DASHBOARD_SCREEN = document.getElementById('adminDashboard');
+
+        window.onload = () => {
+            // Admin doesn't strictly need initializeData from common.js if using backend, 
+            // but checking login state is important.
+            checkLogin();
+        };
+
+        const checkLogin = () => {
+            const admin = checkAuth('admin');
+            if (admin) {
+                LOGIN_SCREEN.classList.remove('active');
+                DASHBOARD_SCREEN.classList.add('active');
+                loadAdminData();
+            } else {
+                LOGIN_SCREEN.classList.add('active');
+                DASHBOARD_SCREEN.classList.remove('active');
+            }
+        };
+
+        // Admin login
+        const adminLogin = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('adminUserId').value;
+            const password = document.getElementById('adminPassword').value;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/login/admin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, password })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('currentAdmin', JSON.stringify(data));
+                    checkLogin();
+                    showNotification('Welcome, Administrator!', 'success');
+                } else {
+                    showNotification('Invalid admin credentials!', 'error');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showNotification('Network error. Check backend connection.', 'error');
+            }
+        };
+
+        // Load sample data (50 students)
+        const loadSampleData = async () => {
+            const departments = ['CSC', 'ECE', 'CYBER', 'AI&ML', 'AL&DS', 'CSBS', 'IT', 'EEE', 'MECHANICAL', 'BIOTECH'];
+            const years = ['1', '2', '3', '4'];
+            const firstNames = ['Aarav', 'Vihaan', 'Arjun', 'Krishna', 'Rohan', 'Sai', 'Aditya', 'Dhruv', 'Karan', 'Rahul',
+                'Ananya', 'Diya', 'Isha', 'Kavya', 'Meera', 'Priya', 'Riya', 'Sania', 'Tara', 'Zara'];
+            const lastNames = ['Sharma', 'Verma', 'Patel', 'Kumar', 'Singh', 'Reddy', 'Iyer', 'Menon', 'Nair', 'Gupta'];
+
+            const sampleStudents = [];
+
+            for (let i = 1; i <= 50; i++) {
+                const dept = departments[Math.floor(Math.random() * departments.length)];
+                const year = years[Math.floor(Math.random() * years.length)];
+                const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+                const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+                const regNo = `PEC${dept}${year}${i.toString().padStart(3, '0')}`;
+                // Random DOB between 2000 and 2005
+                const dob = `${2000 + Math.floor(Math.random() * 5)}-${(Math.floor(Math.random() * 12) + 1).toString().padStart(2, '0')}-${(Math.floor(Math.random() * 28) + 1).toString().padStart(2, '0')}`;
+
+                sampleStudents.push({
+                    regNo: regNo,
+                    name: `${firstName} ${lastName}`,
+                    dept: dept,
+                    year: year,
+                    dob: dob,
+                    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@pec.edu`,
+                    parentMobile: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`
+                });
+            }
+
+            try {
+                showNotification('Uploading sample data...', 'info');
+                const response = await fetch(`${API_BASE_URL}/students`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(sampleStudents)
+                });
+
+                if (response.ok) {
+                    loadAdminData();
+                    showNotification('50 sample students loaded successfully!', 'success');
+                } else {
+                    showNotification('Failed to load sample data', 'error');
+                }
+            } catch (e) {
+                console.error(e);
+                showNotification('Error uploading data', 'error');
+            }
+        };
+
+        // Load admin data
+        const loadAdminData = async () => {
+            try {
+                // Fetch students
+                const sResponse = await fetch(`${API_BASE_URL}/students`);
+                const students = sResponse.ok ? await sResponse.json() : [];
+
+                // Fetch leave stats - we can get all leaves to count
+                // Optimization: In a real app, we'd have a specific stats endpoint
+                const lResponse = await fetch(`${API_BASE_URL}/leaves`);
+                const applications = lResponse.ok ? await lResponse.json() : [];
+
+                // For staff counts, we might just assume default or need an endpoint.
+                // Assuming default numbers if endpoints don't exist yet
+                const advisorsCount = 4; // Placeholder
+                const hodsCount = 4;     // Placeholder
+
+                document.getElementById('adminStats').innerHTML = `
+                <div class="stat-card">
+                  <h3>${students.length}</h3>
+                  <p>Total Students</p>
+                </div>
+                <div class="stat-card">
+                  <h3>${applications.length}</h3>
+                  <p>Leave Applications</p>
+                </div>
+                <div class="stat-card">
+                  <h3>${advisorsCount}+</h3>
+                  <p>Class Advisors</p>
+                </div>
+                <div class="stat-card">
+                  <h3>${hodsCount}+</h3>
+                  <p>HODs</p>
+                </div>
+              `;
+
+                const tbody = document.querySelector('#adminTable tbody');
+                tbody.innerHTML = '';
+
+                if (students.length === 0) {
+                    tbody.innerHTML = `
+                  <tr>
+                    <td colspan="10" style="text-align: center; padding: 40px;">
+                      <i class="fas fa-users" style="font-size: 3rem; color: #ddd; margin-bottom: 20px; display: block;"></i>
+                      <h3 style="color: #7f8c8d;">No students found</h3>
+                      <p>Use the menu above to load or add students</p>
+                    </td>
+                  </tr>
+                `;
+                    return;
+                }
+
+                students.forEach(student => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                  <td>${student.regNo}</td>
+                  <td>${student.name}</td>
+                  <td>${student.dept}</td>
+                  <td>${student.year}</td>
+                  <td>${student.dob}</td>
+                  <td>${student.email || 'N/A'}</td>
+                  <td>${student.parentMobile || 'N/A'}</td>
+                  <td>${student.dept.toLowerCase()}_advisor</td>
+                  <td>${student.dept.toLowerCase()}_hod</td>
+                  <td>
+                    <button class="action-btn edit-btn" onclick="editStudent('${student.regNo}')">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="action-btn reject-btn" onclick="deleteStudent('${student.regNo}')">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </td>
+                `;
+                    tbody.appendChild(row);
+                });
+            } catch (e) {
+                console.error("Error loading admin data", e);
+            }
+        };
+
+        // Modal Functions
+        const showModal = (modalId) => {
+            document.getElementById(modalId).classList.add('active');
+        };
+
+        const closeModal = (modalId) => {
+            document.getElementById(modalId).classList.remove('active');
+        };
+
+        // Close modal on outside click
+        window.onclick = function (event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('active');
+            }
+        }
+
+        // Preview CSV file
+        const previewCSV = () => {
+            const fileInput = document.getElementById('csvFile');
+            const previewDiv = document.getElementById('csvPreview');
+            const previewTable = document.getElementById('previewTable');
+
+            // ... (CSV preview logic remains client-side) ... 
+            if (!fileInput.files.length) {
+                previewDiv.style.display = 'none';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                const content = e.target.result;
+                const rows = content.split('\n').slice(0, 6); // Get first 6 rows
+
+                let tableHTML = '<table style="width:100%; border-collapse: collapse; font-size: 0.9rem;">';
+                rows.forEach((row, index) => {
+                    const cells = row.split(',');
+                    tableHTML += '<tr>';
+                    cells.forEach(cell => {
+                        if (index === 0) {
+                            tableHTML += `<th style="border:1px solid #ddd; padding:5px; background:#f8f9fa;">${cell.trim()}</th>`;
+                        } else {
+                            tableHTML += `<td style="border:1px solid #ddd; padding:5px;">${cell.trim()}</td>`;
+                        }
+                    });
+                    tableHTML += '</tr>';
+                });
+                tableHTML += '</table>';
+                previewTable.innerHTML = tableHTML;
+                previewDiv.style.display = 'block';
+            };
+            reader.readAsText(file);
+        };
+
+        // Process CSV file
+        const processCSV = () => {
+            const fileInput = document.getElementById('csvFile');
+
+            if (!fileInput.files.length) {
+                showNotification('Please select a CSV file first!', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async function (e) {
+                try {
+                    const content = e.target.result;
+                    const rows = content.split('\n').filter(row => row.trim() !== '');
+
+                    if (rows.length < 2) return;
+
+                    const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
+                    const required = ['regno', 'name', 'dept', 'year', 'dob']; // Minimal required
+
+                    const newStudents = [];
+                    for (let i = 1; i < rows.length; i++) {
+                        const cells = rows[i].split(',').map(c => c.trim());
+                        if (cells.length < headers.length) continue;
+
+                        const s = {};
+                        headers.forEach((h, idx) => s[h] = cells[idx]);
+
+                        // Remap keys if necessary or valid
+                        if (s.regno && s.dob) {
+                            newStudents.push({
+                                regNo: s.regno,
+                                name: s.name,
+                                dept: s.dept ? s.dept.toUpperCase() : '',
+                                year: s.year,
+                                dob: s.dob,
+                                email: s.email || '',
+                                parentMobile: s.parentmobile || ''
+                            });
+                        }
+                    }
+
+                    // Send to backend
+                    const response = await fetch(`${API_BASE_URL}/students`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newStudents)
+                    });
+
+                    if (response.ok) {
+                        showNotification(`Imported ${newStudents.length} students!`, 'success');
+                        closeModal('loadDataModal');
+                        loadAdminData();
+                    } else {
+                        showNotification('Import failed', 'error');
+                    }
+
+                } catch (error) {
+                    showNotification('Error processing CSV', 'error');
+                }
+            };
+
+            reader.readAsText(file);
+        };
+
+        // Add new student
+        const addStudent = async (e) => {
+            e.preventDefault();
+
+            const newStudent = {
+                regNo: document.getElementById('newRegNo').value.trim(),
+                name: document.getElementById('newName').value.trim(),
+                dept: document.getElementById('newDept').value,
+                year: document.getElementById('newYear').value,
+                dob: document.getElementById('newDOB').value,
+                email: document.getElementById('newEmail').value.trim(),
+                parentMobile: document.getElementById('newParentMobile').value.trim()
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/students`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newStudent)
+                });
+
+                if (response.ok) {
+                    showNotification('Student added successfully!', 'success');
+                    e.target.reset();
+                    closeModal('addStudentModal');
+                    loadAdminData();
+                } else {
+                    const err = await response.json();
+                    showNotification(err.error || 'Failed to add student', 'error');
+                }
+            } catch (e) {
+                showNotification('Network error', 'error');
+            }
+        };
+
+        // Add staff member
+        const addStaff = async (e) => {
+            e.preventDefault();
+
+            const staffType = document.getElementById('staffType').value;
+            const staffId = document.getElementById('staffId').value.trim();
+            const staffName = document.getElementById('staffName').value.trim();
+            const staffPassword = document.getElementById('staffPassword').value;
+            const staffDept = document.getElementById('staffDept').value;
+
+            if (!staffType || !staffId || !staffName || !staffPassword) {
+                showNotification('Please fill all required fields!', 'error');
+                return;
+            }
+
+            if ((staffType === 'advisor' || staffType === 'hod') && !staffDept) {
+                showNotification('Please select department!', 'error');
+                return;
+            }
+
+            const staffData = {
+                role: staffType,
+                id: staffId,
+                password: staffPassword,
+                name: staffName,
+                dept: (staffType === 'advisor' || staffType === 'hod') ? staffDept : null
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/staff`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(staffData)
+                });
+
+                if (response.ok) {
+                    showNotification(`${staffType.charAt(0).toUpperCase() + staffType.slice(1)} added successfully!`, 'success');
+                    // Clear form
+                    document.getElementById('staffType').value = '';
+                    document.getElementById('staffId').value = '';
+                    document.getElementById('staffName').value = '';
+                    document.getElementById('staffPassword').value = '';
+                    document.getElementById('staffDept').value = '';
+                    document.getElementById('staffDeptGroup').style.display = 'none';
+                    closeModal('addStaffModal');
+                    loadAdminData(); // Refresh stats
+                } else {
+                    const err = await response.json();
+                    showNotification(err.error || 'Failed to add staff', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showNotification('Network error', 'error');
+            }
+        };
+
+        // Update staff fields based on type
+        const updateStaffFields = () => {
+            const staffType = document.getElementById('staffType').value;
+            const deptGroup = document.getElementById('staffDeptGroup');
+
+            if (staffType === 'advisor' || staffType === 'hod') {
+                deptGroup.style.display = 'block';
+                document.getElementById('staffDept').required = true;
+            } else {
+                deptGroup.style.display = 'none';
+                document.getElementById('staffDept').required = false;
+            }
+        };
+
+        // Delete student
+        const deleteStudent = async (regNo) => {
+            if (confirm('Are you sure you want to delete this student?')) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/students?regNo=${regNo}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        showNotification('Student deleted!', 'success');
+                        loadAdminData();
+                    }
+                } catch (e) {
+                    showNotification('Error deleting student', 'error');
+                }
+            }
+        };
+
+        // Clear all data
+        const clearAllData = async () => {
+            if (confirm('Are you sure you want to clear ALL data? This action cannot be undone.')) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/reset`, { method: 'POST' });
+                    if (response.ok) {
+                        showNotification('All data cleared and reset!', 'success');
+                        loadAdminData();
+                    }
+                } catch (e) {
+                    showNotification('Error resetting data', 'error');
+                }
+            }
+        };
+
+        // Reset credentials (Legacy/Placeholder)
+        const resetCredentials = () => {
+            // Since we use seeds, this might just trigger the seed endpoint again?
+            // For now, let's just re-seed.
+            fetch(`${API_BASE_URL}/seed`, { method: 'POST' })
+                .then(() => showNotification('Staff credentials reset to default!', 'success'));
+        };
+
+        // Export data
+        const exportData = async () => {
+            // Fetch everything
+            const sReq = await fetch(`${API_BASE_URL}/students`);
+            const lReq = await fetch(`${API_BASE_URL}/leaves`);
+
+            const students = await sReq.json();
+            const leaves = await lReq.json();
+
+            const data = {
+                students,
+                applications: leaves
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pec-leave-data-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+    </script>
+</body>
+
+</html>

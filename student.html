@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Portal - PEC Leave Management</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+
+        <!-- Student Login -->
+        <div id="studentLoginScreen" class="screen">
+            <div class="dashboard-header">
+                <h2><i class="fas fa-user-graduate"></i> Student Login</h2>
+                <a href="index.html" class="btn btn-secondary" style="width: auto; padding: 10px 20px;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </div>
+
+            <form onsubmit="studentLogin(event)">
+                <div class="form-group">
+                    <label><i class="fas fa-id-card"></i> Register Number</label>
+                    <input type="text" id="studentRegNo" placeholder="Enter your register number" required>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-calendar-alt"></i> Date of Birth (DOB)</label>
+                    <input type="date" id="studentDOB" required>
+                </div>
+
+                <button type="submit" class="btn">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+            </form>
+        </div>
+
+        <!-- Student Dashboard -->
+        <div id="studentDashboard" class="screen">
+            <div class="dashboard-header">
+                <h2><i class="fas fa-tachometer-alt"></i> Student Dashboard</h2>
+                <div class="user-info">
+                    <div class="user-avatar" id="dashboardAvatar"></div>
+                    <div>
+                        <h4 id="dashboardGreeting"></h4>
+                        <button class="btn btn-success" onclick="showApplyLeave()"
+                            style="width:auto; padding:8px 15px;">
+                            <i class="fas fa-plus"></i> Apply Leave
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="menu-bar">
+                <button class="btn" onclick="loadStudentRequests()">
+                    <i class="fas fa-sync-alt"></i> Refresh Data
+                </button>
+                <input type="date" id="filterDate" onchange="filterByDate()" style="width:auto;">
+                <select id="filterStatus" onchange="filterByStatus()" style="width:auto;">
+                    <option value="">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Advisor Approved">Advisor Approved</option>
+                    <option value="HOD Approved">HOD Approved</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+            </div>
+
+            <div class="table-container">
+                <table id="studentRequestsTable">
+                    <thead>
+                        <tr>
+                            <th>Applied Date</th>
+                            <th>From Date</th>
+                            <th>To Date</th>
+                            <th>Reason</th>
+                            <th>Parent Mobile</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-danger" onclick="logout('student')">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- Apply Leave Form (Overlay) -->
+        <div id="applyLeaveScreen" class="screen" style="display: none;">
+            <div class="dashboard-header">
+                <h2><i class="fas fa-file-medical"></i> Apply for Leave</h2>
+                <button class="btn btn-secondary" onclick="hideApplyLeave()" style="width: auto;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+            </div>
+
+            <form onsubmit="submitLeave(event)">
+                <div class="form-group">
+                    <label><i class="fas fa-calendar-plus"></i> From Date</label>
+                    <input type="date" id="fromDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-calendar-minus"></i> To Date</label>
+                    <input type="date" id="toDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-comment-alt"></i> Reason for Leave</label>
+                    <textarea id="reason" placeholder="Enter reason for leave" rows="4" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-phone"></i> Parent Mobile Number</label>
+                    <input type="tel" id="parentMobile" placeholder="Enter parent's mobile number" required>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-envelope"></i> Student Email</label>
+                    <input type="email" id="studentEmail" placeholder="Enter your email" required>
+                </div>
+
+                <button type="submit" class="btn">
+                    <i class="fas fa-paper-plane"></i> Submit Leave Application
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+    <script src="common.js"></script>
+    <script>
+        // Constants
+        const LOGIN_SCREEN = document.getElementById('studentLoginScreen');
+        const DASHBOARD_SCREEN = document.getElementById('studentDashboard');
+
+        window.onload = () => {
+            checkLogin();
+            // Set min date for leave to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('fromDate').min = today;
+            document.getElementById('toDate').min = today;
+
+            // Date validation listener
+            document.getElementById('fromDate').addEventListener('change', function () {
+                document.getElementById('toDate').min = this.value;
+            });
+        };
+
+        const checkLogin = () => {
+            const student = checkAuth('student');
+            if (student) {
+                LOGIN_SCREEN.classList.remove('active');
+                DASHBOARD_SCREEN.classList.add('active');
+                studentEmail: studentEmail,
+                    appliedDate: new Date().toISOString().split('T')[0],
+                        status: 'Pending',
+                            advisorAction: null,
+                                hodAction: null
+            };
+
+            const applications = JSON.parse(localStorage.getItem('leaveApplications'));
+            applications.push(leaveApplication);
+            localStorage.setItem('leaveApplications', JSON.stringify(applications));
+
+            showNotification('Leave application submitted successfully!', 'success');
+            hideApplyLeave();
+            loadStudentRequests();
+        };
+
+        // Filters
+        const filterByDate = () => {
+            const filterDate = document.getElementById('filterDate').value;
+            const rows = document.querySelectorAll('#studentRequestsTable tbody tr');
+
+            rows.forEach(row => {
+                const rowDate = row.cells[0].textContent;
+                if (!filterDate || rowDate === filterDate) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        };
+
+        const filterByStatus = () => {
+            const filterStatus = document.getElementById('filterStatus').value;
+            const rows = document.querySelectorAll('#studentRequestsTable tbody tr');
+
+            rows.forEach(row => {
+                const status = row.cells[5].textContent;
+                if (!filterStatus || status === filterStatus) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        };
+    </script>
+</body>
+
+</html>

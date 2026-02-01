@@ -248,10 +248,10 @@
                 // Only show actions if 'Advisor Approved' (Pending HOD action)
                 if (app.status === 'Advisor Approved') {
                     actionHtml = `
-                        <button class="action-btn approve-btn" onclick="updateStatus('${app.id}', 'HOD Approved')">
+                        <button class="action-btn approve-btn" onclick="updateStatus('${app._id}', 'HOD Approved')">
                             <i class="fas fa-check"></i> Approve
                         </button>
-                        <button class="action-btn reject-btn" onclick="updateStatus('${app.id}', 'Rejected')">
+                        <button class="action-btn reject-btn" onclick="updateStatus('${app._id}', 'Rejected')">
                             <i class="fas fa-times"></i> Reject
                         </button>
                     `;

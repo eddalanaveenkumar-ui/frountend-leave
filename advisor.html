@@ -234,10 +234,10 @@
                 // Only show actions if Pending
                 if (app.status === 'Pending') {
                     actionHtml = `
-                        <button class="action-btn approve-btn" onclick="updateStatus('${app.id}', 'Advisor Approved')">
+                        <button class="action-btn approve-btn" onclick="updateStatus('${app._id}', 'Advisor Approved')">
                             <i class="fas fa-check"></i>
                         </button>
-                        <button class="action-btn reject-btn" onclick="updateStatus('${app.id}', 'Rejected')">
+                        <button class="action-btn reject-btn" onclick="updateStatus('${app._id}', 'Rejected')">
                             <i class="fas fa-times"></i>
                         </button>
                     `;

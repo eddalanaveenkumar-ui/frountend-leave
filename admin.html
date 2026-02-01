@@ -72,6 +72,9 @@
                 <button class="btn btn-danger" onclick="clearAllData()">
                     <i class="fas fa-trash-alt"></i> Clear All
                 </button>
+                <button class="btn btn-warning" onclick="fixDepartments()">
+                    <i class="fas fa-magic"></i> Fix Depts
+                </button>
             </div>
 
             <div class="table-container">
@@ -730,6 +733,24 @@
                     }
                 } catch (e) {
                     showNotification('Error resetting data', 'error');
+                }
+            }
+        };
+
+        // Fix Department Names (Migration)
+        const fixDepartments = async () => {
+            if (confirm('Run database migration to fix Department names?')) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/fix-departments`, { method: 'POST' });
+                    if (response.ok) {
+                        const res = await response.json();
+                        showNotification(res.message, 'success');
+                        loadAdminData();
+                    } else {
+                        showNotification('Migration failed', 'error');
+                    }
+                } catch (e) {
+                    showNotification('Network error', 'error');
                 }
             }
         };

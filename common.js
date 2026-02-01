@@ -1,5 +1,7 @@
 // Backend API URL
+// Backend API URL
 const API_BASE_URL = 'https://leave-backend-24w1.onrender.com/api'; // Deployment URL
+// const API_BASE_URL = 'http://127.0.0.1:5000/api'; // Local Development URL
 
 // Initialize data (Legacy: only used if offline/fallback, but generally we rely on DB now)
 const initializeData = () => {

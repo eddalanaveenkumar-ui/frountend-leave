@@ -191,6 +191,10 @@
             }
 
             try {
+                // Show buffering/loading state
+                const tbody = document.querySelector('#hodTable tbody');
+                if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 20px;"><i class="fas fa-spinner fa-spin fa-2x"></i><br>Loading requests...</td></tr>';
+
                 // HOD Sees 'Advisor Approved' by default. If History, fetch ALL for department.
                 let url = `${API_BASE_URL}/leaves?dept=${encodeURIComponent(dept)}`;
                 if (!showHistory) {

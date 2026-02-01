@@ -104,13 +104,13 @@
 
     </div>
     <script src="common.js"></script>
+    <script src="common.js"></script>
     <script>
         // Constants
         const LOGIN_SCREEN = document.getElementById('managementLoginScreen');
         const DASHBOARD_SCREEN = document.getElementById('managementDashboard');
 
         window.onload = () => {
-            initializeData();
             checkLogin();
         };
 
@@ -119,7 +119,7 @@
             if (user) {
                 LOGIN_SCREEN.classList.remove('active');
                 DASHBOARD_SCREEN.classList.add('active');
-                loadManagementRequests();
+                loadManagementDashboard();
             } else {
                 LOGIN_SCREEN.classList.add('active');
                 DASHBOARD_SCREEN.classList.remove('active');
@@ -127,84 +127,116 @@
         };
 
         // Management login
-        const managementLogin = (e) => {
+        const managementLogin = async (e) => {
             e.preventDefault();
             const id = document.getElementById('mUserId').value;
             const password = document.getElementById('mPassword').value;
 
-            const management = JSON.parse(localStorage.getItem('management'));
-            const user = management.find(m => m.id === id && m.password === password);
+            try {
+                const response = await fetch(`${API_BASE_URL}/login/staff`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: 'management', id, password })
+                });
 
-            if (user) {
-                localStorage.setItem('currentManagement', JSON.stringify(user));
-                checkLogin();
-                showNotification('Welcome, Management!', 'success');
-            } else {
-                showNotification('Invalid management credentials!', 'error');
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('currentManagement', JSON.stringify(data));
+                    checkLogin();
+                    showNotification('Welcome, Management!', 'success');
+                } else {
+                    const err = await response.json();
+                    showNotification(err.error || 'Invalid credentials', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showNotification('Network error', 'error');
             }
         };
 
         // Load management requests
-        const loadManagementRequests = () => {
-            const applications = JSON.parse(localStorage.getItem('leaveApplications'));
+        const loadManagementDashboard = async () => {
+            loadAttendanceStats(); // Priority: Global attendance
+            loadAllApplications(); // Secondary: List of applications
+        };
 
-            // Update stats
-            document.getElementById('managementStats').innerHTML = `
-        <div class="stat-card">
-          <h3>${applications.filter(app => app.status === 'Pending').length}</h3>
-          <p>Pending Requests</p>
-        </div>
-        <div class="stat-card">
-          <h3>${applications.filter(app => app.status === 'Advisor Approved').length}</h3>
-          <p>Advisor Approved</p>
-        </div>
-        <div class="stat-card">
-          <h3>${applications.filter(app => app.status === 'HOD Approved').length}</h3>
-          <p>HOD Approved</p>
-        </div>
-        <div class="stat-card">
-          <h3>${applications.length}</h3>
-          <p>Total Applications</p>
-        </div>
-      `;
+        const loadAttendanceStats = async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/stats/attendance`); // No filter = Global
+                if (response.ok) {
+                    const stats = await response.json();
+                    document.getElementById('managementStats').innerHTML = `
+                        <div class="stat-card">
+                          <h3>${stats.total}</h3>
+                          <p>Total Students</p>
+                        </div>
+                        <div class="stat-card">
+                          <h3>${stats.present}</h3>
+                          <p>Present Today</p>
+                        </div>
+                        <div class="stat-card" style="border-bottom: 4px solid #e74c3c;">
+                          <h3>${stats.onLeave}</h3>
+                          <p>On Leave Today</p>
+                        </div>
+                        <div class="stat-card" style="border-bottom: 4px solid #3498db;">
+                            <h3>${stats.date}</h3>
+                            <p>Date</p>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                console.error("Stats error", e);
+            }
+        };
 
+        const loadAllApplications = async () => {
+            try {
+                // Fetch ALL leaves. Logic might need an endpoint for 'all' or just 'leaves' without filters?
+                // The current backend /api/leaves returns all if no filter is provided.
+                const response = await fetch(`${API_BASE_URL}/leaves`);
+                const applications = response.ok ? await response.json() : [];
+
+                renderTable(applications);
+
+            } catch (e) {
+                console.error("Table error", e);
+            }
+        };
+
+        const renderTable = (applications) => {
             const tbody = document.querySelector('#managementTable tbody');
+            if (!tbody) return;
+
             tbody.innerHTML = '';
 
             if (applications.length === 0) {
-                tbody.innerHTML = `
-          <tr>
-            <td colspan="11" style="text-align: center; padding: 40px;">
-              <i class="fas fa-database" style="font-size: 3rem; color: #ddd; margin-bottom: 20px; display: block;"></i>
-              <h3 style="color: #7f8c8d;">No data available</h3>
-            </td>
-          </tr>
-        `;
+                tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;">No data found</td></tr>`;
                 return;
             }
 
+            // Sort by date desc
             applications.sort((a, b) => new Date(b.appliedDate) - new Date(a.appliedDate));
 
             applications.forEach(app => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-          <td>${app.regNo}</td>
-          <td>${app.name}</td>
-          <td>${app.dept}</td>
-          <td>${app.year}</td>
-          <td>${app.appliedDate}</td>
-          <td>${app.fromDate}</td>
-          <td>${app.toDate}</td>
-          <td>${app.reason}</td>
-          <td>${app.studentEmail}</td>
-          <td>${app.parentMobile}</td>
-          <td><span class="status status-${app.status.toLowerCase().replace(' ', '-')}">${app.status}</span></td>
-        `;
+                  <td>${app.regNo}</td>
+                  <td>${app.name}</td>
+                  <td>${app.dept}</td>
+                  <td>${app.year}</td>
+                  <td>${app.appliedDate}</td>
+                  <td>${app.fromDate}</td>
+                  <td>${app.toDate}</td>
+                  <td>${app.reason}</td>
+                  <td>${app.studentEmail || '-'}</td>
+                  <td>${app.parentMobile}</td>
+                  <td><span class="status status-${app.status.toLowerCase().replace(' ', '-')}">${app.status}</span></td>
+                `;
                 tbody.appendChild(row);
             });
         };
 
-        // Filter functions for management
+        // Filter functions for management (Client side)
         const filterManagementByDept = () => {
             const filterDept = document.getElementById('managementFilterDept').value;
             const rows = document.querySelectorAll('#managementTable tbody tr');

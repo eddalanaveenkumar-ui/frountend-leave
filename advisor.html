@@ -122,7 +122,6 @@
         const DASHBOARD_SCREEN = document.getElementById('advisorDashboard');
 
         window.onload = () => {
-            initializeData();
             checkLogin();
         };
 
@@ -131,9 +130,7 @@
             if (advisor) {
                 LOGIN_SCREEN.classList.remove('active');
                 DASHBOARD_SCREEN.classList.add('active');
-                loadAdvisorRequests();
-                document.getElementById('advisorTitle').textContent = `${advisor.dept} - Class Advisor Dashboard`;
-                document.getElementById('advisorAvatar').textContent = advisor.name.charAt(0);
+                loadAdvisorData(advisor);
             } else {
                 LOGIN_SCREEN.classList.add('active');
                 DASHBOARD_SCREEN.classList.remove('active');
@@ -141,126 +138,141 @@
         };
 
         // Advisor login
-        const advisorLogin = (e) => {
+        const advisorLogin = async (e) => {
             e.preventDefault();
-            const dept = document.getElementById('advisorDept').value;
             const id = document.getElementById('advisorId').value;
             const password = document.getElementById('advisorPassword').value;
+            const dept = document.getElementById('advisorDept').value;
 
-            const advisors = JSON.parse(localStorage.getItem('advisors'));
-            const advisor = advisors.find(a => a.dept === dept && a.id === id && a.password === password);
+            try {
+                const response = await fetch(`${API_BASE_URL}/login/staff`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: 'advisor', id, password, dept })
+                });
 
-            if (advisor) {
-                localStorage.setItem('currentAdvisor', JSON.stringify(advisor));
-                checkLogin();
-                showNotification('Welcome, Class Advisor!', 'success');
-            } else {
-                showNotification('Invalid advisor credentials!', 'error');
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('currentAdvisor', JSON.stringify(data));
+                    checkLogin();
+                    showNotification(`Welcome, Advisor (${data.dept})!`, 'success');
+                } else {
+                    const err = await response.json();
+                    showNotification(err.error || 'Invalid credentials', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showNotification('Network error', 'error');
             }
         };
 
-        // Load advisor requests
-        const loadAdvisorRequests = () => {
-            const advisor = checkAuth('advisor');
-            if (!advisor) return;
+        // Load data
+        const loadAdvisorData = async (advisor) => {
+            if (document.getElementById('advisorTitle')) {
+                document.getElementById('advisorTitle').textContent = `${advisor.dept} - Class Advisor Dashboard`;
+            }
+            if (document.getElementById('advisorAvatar')) {
+                document.getElementById('advisorAvatar').textContent = advisor.name ? advisor.name.charAt(0) : 'A';
+            }
+            loadAdvisorRequests(advisor.dept);
+        };
 
-            const applications = JSON.parse(localStorage.getItem('leaveApplications'));
-            const advisorApplications = applications.filter(app => app.dept === advisor.dept && app.status === 'Pending');
+        const loadAdvisorRequests = async (dept) => {
+            if (!dept) {
+                const advisor = checkAuth('advisor');
+                if (advisor) dept = advisor.dept;
+                else return;
+            }
 
-            // Update stats
-            document.getElementById('advisorStats').innerHTML = `
-        <div class="stat-card">
-          <h3>${advisorApplications.length}</h3>
-          <p>Pending Requests</p>
-        </div>
-        <div class="stat-card">
-          <h3>${applications.filter(app => app.dept === advisor.dept && app.status === 'Advisor Approved').length}</h3>
-          <p>Approved by You</p>
-        </div>
-        <div class="stat-card">
-          <h3>${applications.filter(app => app.dept === advisor.dept).length}</h3>
-          <p>Total Requests</p>
-        </div>
-      `;
+            try {
+                // Advisors only see 'Pending' leaves for their department
+                const response = await fetch(`${API_BASE_URL}/leaves?dept=${dept}&status=Pending`);
+                const leaves = response.ok ? await response.json() : [];
 
+                renderStats(leaves.length); // Assuming stats just show pending count for now
+                renderLeavesTable(leaves);
+            } catch (e) {
+                console.error(e);
+            }
+        };
+
+        const renderStats = (pendingCount) => {
+            const statsContainer = document.getElementById('advisorStats');
+            if (statsContainer) {
+                statsContainer.innerHTML = `
+                    <div class="stat-card">
+                      <h3>${pendingCount}</h3>
+                      <p>Pending Requests</p>
+                    </div>
+                  `;
+            }
+        };
+
+        const renderLeavesTable = (leaves) => {
             const tbody = document.querySelector('#advisorTable tbody');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
-            if (advisorApplications.length === 0) {
-                tbody.innerHTML = `
-          <tr>
-            <td colspan="11" style="text-align: center; padding: 40px;">
-              <i class="fas fa-check-circle" style="font-size: 3rem; color: #2ecc71; margin-bottom: 20px; display: block;"></i>
-              <h3 style="color: #7f8c8d;">No pending requests</h3>
-              <p>All requests have been processed</p>
-            </td>
-          </tr>
-        `;
+            if (leaves.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:20px;">No pending applications</td></tr>`;
                 return;
             }
 
-            advisorApplications.sort((a, b) => new Date(b.appliedDate) - new Date(a.appliedDate));
-
-            advisorApplications.forEach(app => {
+            leaves.forEach(app => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-          <td>${app.regNo}</td>
-          <td>${app.name}</td>
-          <td>${app.year}</td>
-          <td>${app.appliedDate}</td>
-          <td>${app.fromDate}</td>
-          <td>${app.toDate}</td>
-          <td>${app.reason}</td>
-          <td>${app.studentEmail}</td>
-          <td>${app.parentMobile}</td>
-          <td><span class="status status-pending">${app.status}</span></td>
-          <td>
-            <button class="action-btn accept-btn" onclick="advisorApprove(${app.id})">
-              <i class="fas fa-check"></i> Approve
-            </button>
-            <button class="action-btn reject-btn" onclick="advisorReject(${app.id})">
-              <i class="fas fa-times"></i> Reject
-            </button>
-          </td>
-        `;
+                    <td>${app.regNo}</td>
+                    <td>${app.name}</td>
+                     <td>${app.year}</td>
+                     <td>${app.appliedDate}</td>
+                    <td>${app.fromDate}</td>
+                    <td>${app.toDate}</td>
+                    <td>${app.reason}</td>
+                     <td>${app.studentEmail || '-'}</td>
+                    <td>${app.parentMobile}</td>
+                    <td><span class="status status-pending">Pending</span></td>
+                    <td>
+                        <button class="action-btn approve-btn" onclick="updateStatus('${app.id}', 'Advisor Approved')">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="action-btn reject-btn" onclick="updateStatus('${app.id}', 'Rejected')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                `;
                 tbody.appendChild(row);
             });
         };
 
-        // Advisor actions
-        const advisorApprove = (id) => {
-            const applications = JSON.parse(localStorage.getItem('leaveApplications'));
-            const appIndex = applications.findIndex(app => app.id === id);
+        const updateStatus = async (id, status) => {
+            if (!confirm(`Are you sure you want to set status to ${status}?`)) return;
 
-            if (appIndex > -1) {
-                applications[appIndex].status = 'Advisor Approved';
-                applications[appIndex].advisorAction = new Date().toISOString().split('T')[0];
-                localStorage.setItem('leaveApplications', JSON.stringify(applications));
-                showNotification('Leave request approved!', 'success');
-                loadAdvisorRequests();
+            try {
+                const response = await fetch(`${API_BASE_URL}/leaves/${id}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status, role: 'advisor' })
+                });
+
+                if (response.ok) {
+                    showNotification(`Leave ${status}`, 'success');
+                    const advisor = checkAuth('advisor');
+                    if (advisor) loadAdvisorRequests(advisor.dept);
+                } else {
+                    showNotification('Failed to update status', 'error');
+                }
+            } catch (e) {
+                showNotification('Network error', 'error');
             }
         };
 
-        const advisorReject = (id) => {
-            const applications = JSON.parse(localStorage.getItem('leaveApplications'));
-            const appIndex = applications.findIndex(app => app.id === id);
-
-            if (appIndex > -1) {
-                applications[appIndex].status = 'Rejected';
-                applications[appIndex].advisorAction = new Date().toISOString().split('T')[0];
-                localStorage.setItem('leaveApplications', JSON.stringify(applications));
-                showNotification('Leave request rejected!', 'error');
-                loadAdvisorRequests();
-            }
-        };
-
-        // Filter functions for advisor
+        // Filter functions for advisor (Client side for now)
         const filterAdvisorByDate = () => {
             const filterDate = document.getElementById('advisorFilterDate').value;
             const rows = document.querySelectorAll('#advisorTable tbody tr');
 
             rows.forEach(row => {
-                const rowDate = row.cells[3].textContent;
+                const rowDate = row.cells[3].textContent; // Applied Date
                 if (!filterDate || rowDate === filterDate) {
                     row.style.display = '';
                 } else {
@@ -284,18 +296,7 @@
         };
 
         const filterAdvisorByStatus = () => {
-            const filterStatus = document.getElementById('advisorFilterStatus').value;
-            const rows = document.querySelectorAll('#advisorTable tbody tr');
-
-            rows.forEach(row => {
-                const statusElement = row.cells[9].querySelector('.status');
-                const status = statusElement ? statusElement.textContent : '';
-                if (!filterStatus || status === filterStatus) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
+            // Currently only pending is loaded, so this might be redundant unless we load all
         };
     </script>
 </body>

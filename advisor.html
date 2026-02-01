@@ -61,7 +61,11 @@
                 <h2 id="advisorTitle"></h2>
                 <div class="user-info">
                     <div class="user-avatar" id="advisorAvatar"></div>
-                    <button class="btn btn-success" onclick="loadAdvisorRequests()"
+                    <button class="btn btn-info" onclick="loadAdvisorRequests(null, true)"
+                        style="width:auto; padding:8px 15px;">
+                        <i class="fas fa-history"></i> History
+                    </button>
+                    <button class="btn btn-success" onclick="loadAdvisorRequests(null, false)"
                         style="width:auto; padding:8px 15px;">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
@@ -177,7 +181,7 @@
             loadAdvisorRequests(advisor.dept);
         };
 
-        const loadAdvisorRequests = async (dept) => {
+        const loadAdvisorRequests = async (dept, showHistory = false) => {
             if (!dept) {
                 const advisor = checkAuth('advisor');
                 if (advisor) dept = advisor.dept;
@@ -185,40 +189,62 @@
             }
 
             try {
-                // Advisors only see 'Pending' leaves for their department
-                const response = await fetch(`${API_BASE_URL}/leaves?dept=${dept}&status=Pending`);
+                // Advisors see 'Pending' by default. If History, fetch ALL for department.
+                let url = `${API_BASE_URL}/leaves?dept=${dept}`;
+                if (!showHistory) {
+                    url += `&status=Pending`;
+                }
+
+                const response = await fetch(url);
                 const leaves = response.ok ? await response.json() : [];
 
-                renderStats(leaves.length); // Assuming stats just show pending count for now
-                renderLeavesTable(leaves);
+                renderStats(leaves.length, showHistory);
+                renderLeavesTable(leaves, showHistory);
+
+                if (showHistory) showNotification('Showing all leave history', 'info');
             } catch (e) {
                 console.error(e);
             }
         };
 
-        const renderStats = (pendingCount) => {
+        const renderStats = (count, isHistory) => {
             const statsContainer = document.getElementById('advisorStats');
             if (statsContainer) {
                 statsContainer.innerHTML = `
                     <div class="stat-card">
-                      <h3>${pendingCount}</h3>
-                      <p>Pending Requests</p>
+                      <h3>${count}</h3>
+                      <p>${isHistory ? 'Total Records' : 'Pending Requests'}</p>
                     </div>
                   `;
             }
         };
 
-        const renderLeavesTable = (leaves) => {
+        const renderLeavesTable = (leaves, showHistory) => {
             const tbody = document.querySelector('#advisorTable tbody');
             if (!tbody) return;
             tbody.innerHTML = '';
 
             if (leaves.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:20px;">No pending applications</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:20px;">No applications found</td></tr>`;
                 return;
             }
 
             leaves.forEach(app => {
+                let actionHtml = '';
+                // Only show actions if Pending
+                if (app.status === 'Pending') {
+                    actionHtml = `
+                        <button class="action-btn approve-btn" onclick="updateStatus('${app.id}', 'Advisor Approved')">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="action-btn reject-btn" onclick="updateStatus('${app.id}', 'Rejected')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                } else {
+                    actionHtml = `<span style="font-size:0.8rem; color:#7f8c8d;">Processed</span>`;
+                }
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${app.regNo}</td>
@@ -230,15 +256,8 @@
                     <td>${app.reason}</td>
                      <td>${app.studentEmail || '-'}</td>
                     <td>${app.parentMobile}</td>
-                    <td><span class="status status-pending">Pending</span></td>
-                    <td>
-                        <button class="action-btn approve-btn" onclick="updateStatus('${app.id}', 'Advisor Approved')">
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <button class="action-btn reject-btn" onclick="updateStatus('${app.id}', 'Rejected')">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </td>
+                    <td><span class="status status-${app.status.toLowerCase().replace(' ', '-')}">${app.status}</span></td>
+                    <td>${actionHtml}</td>
                 `;
                 tbody.appendChild(row);
             });

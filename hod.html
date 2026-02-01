@@ -61,7 +61,12 @@
                 <h2 id="hodTitle"></h2>
                 <div class="user-info">
                     <div class="user-avatar" id="hodAvatar"></div>
-                    <button class="btn btn-success" onclick="loadHodRequests()" style="width:auto; padding:8px 15px;">
+                    <button class="btn btn-info" onclick="loadHodRequests(null, true)"
+                        style="width:auto; padding:8px 15px;">
+                        <i class="fas fa-history"></i> History
+                    </button>
+                    <button class="btn btn-success" onclick="loadHodRequests(null, false)"
+                        style="width:auto; padding:8px 15px;">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
                 </div>
@@ -178,13 +183,26 @@
             loadAttendanceStats(hod.dept);
         };
 
-        const loadHodRequests = async (dept) => {
+        const loadHodRequests = async (dept, showHistory = false) => {
+            if (!dept) {
+                const hod = checkAuth('hod');
+                if (hod) dept = hod.dept;
+                else return;
+            }
+
             try {
-                // HOD only sees 'Advisor Approved' leaves for their department
-                const response = await fetch(`${API_BASE_URL}/leaves?dept=${dept}&status=Advisor Approved`);
+                // HOD Sees 'Advisor Approved' by default. If History, fetch ALL for department.
+                let url = `${API_BASE_URL}/leaves?dept=${dept}`;
+                if (!showHistory) {
+                    url += `&status=Advisor Approved`;
+                }
+
+                const response = await fetch(url);
                 const leaves = response.ok ? await response.json() : [];
 
-                renderLeavesTable(leaves);
+                renderLeavesTable(leaves, showHistory);
+
+                if (showHistory) showNotification('Showing all leave history', 'info');
             } catch (e) {
                 console.error(e);
             }
@@ -215,17 +233,32 @@
             }
         }
 
-        const renderLeavesTable = (leaves) => {
+        const renderLeavesTable = (leaves, showHistory) => {
             const tbody = document.querySelector('#hodTable tbody');
             if (!tbody) return;
             tbody.innerHTML = '';
 
             if (leaves.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:20px;">No pending applications (Advisor Approved)</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:20px;">No applications found</td></tr>`;
                 return;
             }
 
             leaves.forEach(app => {
+                let actionHtml = '';
+                // Only show actions if 'Advisor Approved' (Pending HOD action)
+                if (app.status === 'Advisor Approved') {
+                    actionHtml = `
+                        <button class="action-btn approve-btn" onclick="updateStatus('${app.id}', 'HOD Approved')">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button class="action-btn reject-btn" onclick="updateStatus('${app.id}', 'Rejected')">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                    `;
+                } else {
+                    actionHtml = `<span style="font-size:0.8rem; color:#7f8c8d;">${app.status === 'HOD Approved' ? 'Approved' : 'Processed'}</span>`;
+                }
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${app.regNo}</td>
@@ -237,15 +270,8 @@
                     <td>${app.reason}</td>
                      <td>${app.studentEmail || '-'}</td>
                     <td>${app.parentMobile}</td>
-                    <td><span class="status status-pending">Advisor Approved</span></td>
-                    <td>
-                        <button class="action-btn approve-btn" onclick="updateStatus('${app.id}', 'HOD Approved')">
-                            <i class="fas fa-check"></i> Approve
-                        </button>
-                        <button class="action-btn reject-btn" onclick="updateStatus('${app.id}', 'Rejected')">
-                            <i class="fas fa-times"></i> Reject
-                        </button>
-                    </td>
+                    <td><span class="status status-${app.status.toLowerCase().replace(' ', '-')}">${app.status}</span></td>
+                    <td>${actionHtml}</td>
                 `;
                 tbody.appendChild(row);
             });

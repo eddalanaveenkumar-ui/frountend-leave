@@ -139,18 +139,20 @@
         // Constants
         const LOGIN_SCREEN = document.getElementById('studentLoginScreen');
         const DASHBOARD_SCREEN = document.getElementById('studentDashboard');
+        const APPLY_SCREEN = document.getElementById('applyLeaveScreen');
 
         window.onload = () => {
-            checkLogin();
-            // Set min date for leave to today
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('fromDate').min = today;
-            document.getElementById('toDate').min = today;
+            // Ensure elements exist before adding listeners
+            if (document.getElementById('fromDate')) {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('fromDate').min = today;
+                document.getElementById('toDate').min = today;
 
-            // Date validation listener
-            document.getElementById('fromDate').addEventListener('change', function () {
-                document.getElementById('toDate').min = this.value;
-            });
+                document.getElementById('fromDate').addEventListener('change', function () {
+                    document.getElementById('toDate').min = this.value;
+                });
+            }
+            checkLogin();
         };
 
         const checkLogin = () => {
@@ -158,25 +160,170 @@
             if (student) {
                 LOGIN_SCREEN.classList.remove('active');
                 DASHBOARD_SCREEN.classList.add('active');
-                studentEmail: studentEmail,
-                    appliedDate: new Date().toISOString().split('T')[0],
-                        status: 'Pending',
-                            advisorAction: null,
-                                hodAction: null
+                loadStudentData(student);
+            } else {
+                LOGIN_SCREEN.classList.add('active');
+                DASHBOARD_SCREEN.classList.remove('active');
+            }
+        };
+
+        // Student login
+        const studentLogin = async (e) => {
+            e.preventDefault();
+            const regNo = document.getElementById('studentRegNo').value;
+            const dob = document.getElementById('studentDOB').value;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/login/student`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ regNo, dob })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('currentStudent', JSON.stringify(data));
+                    checkLogin();
+                    showNotification('Welcome back!', 'success');
+                } else {
+                    showNotification(data.error || 'Login failed', 'error');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showNotification('Network error. Please try again.', 'error');
+            }
+        };
+
+        // Load student data and requests
+        const loadStudentData = (student) => {
+            document.getElementById('dashboardGreeting').textContent = `Welcome, ${student.name}`;
+            document.getElementById('dashboardAvatar').textContent = student.name.charAt(0);
+
+            // Pre-fill form
+            if (document.getElementById('studentEmail')) document.getElementById('studentEmail').value = student.email || '';
+            if (document.getElementById('parentMobile')) document.getElementById('parentMobile').value = student.parentMobile || '';
+
+            loadLeaveHistory(student.regNo);
+        };
+
+        // Refresh wrapper
+        const loadStudentRequests = () => {
+            const student = checkAuth('student');
+            if (student) loadLeaveHistory(student.regNo);
+        };
+
+        const loadLeaveHistory = async (regNo) => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/leaves?regNo=${regNo}`);
+                if (response.ok) {
+                    const applications = await response.json();
+                    renderLeaveHistory(applications);
+                }
+            } catch (error) {
+                console.error('Error loading leaves:', error);
+            }
+        };
+
+        const renderLeaveHistory = (applications) => {
+            const tbody = document.querySelector('#studentRequestsTable tbody');
+            tbody.innerHTML = '';
+
+            if (applications.length === 0) {
+                tbody.innerHTML = `
+                  <tr>
+                    <td colspan="6" style="text-align: center; color: #7f8c8d; padding: 20px;">
+                      No leave applications found.
+                    </td>
+                  </tr>
+                `;
+                return;
+            }
+
+            // Sort new first
+            applications.sort((a, b) => new Date(b.appliedDate) - new Date(a.appliedDate));
+
+            applications.forEach(app => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                  <td>${app.appliedDate}</td>
+                  <td>${app.fromDate}</td>
+                  <td>${app.toDate}</td>
+                  <td>${app.reason}</td>
+                  <td>${app.parentMobile}</td>
+                  <td><span class="status status-${app.status.toLowerCase().replace(' ', '-')}">${app.status}</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        };
+
+        // Navigation for Apply Leave
+        const showApplyLeave = () => {
+            DASHBOARD_SCREEN.classList.remove('active');
+            if (APPLY_SCREEN) {
+                APPLY_SCREEN.style.display = 'block';
+                APPLY_SCREEN.classList.add('active');
+            }
+        };
+
+        const hideApplyLeave = () => {
+            if (APPLY_SCREEN) {
+                APPLY_SCREEN.classList.remove('active');
+                APPLY_SCREEN.style.display = 'none';
+            }
+            DASHBOARD_SCREEN.classList.add('active');
+        };
+
+        // Submit leave application
+        const submitLeave = async (e) => {
+            e.preventDefault();
+
+            const student = checkAuth('student');
+            if (!student) return;
+
+            const application = {
+                regNo: student.regNo,
+                name: student.name,
+                dept: student.dept,
+                year: student.year,
+                fromDate: document.getElementById('fromDate').value,
+                toDate: document.getElementById('toDate').value,
+                reason: document.getElementById('reason').value,
+                studentEmail: document.getElementById('studentEmail').value,
+                parentMobile: document.getElementById('parentMobile').value
             };
 
-            const applications = JSON.parse(localStorage.getItem('leaveApplications'));
-            applications.push(leaveApplication);
-            localStorage.setItem('leaveApplications', JSON.stringify(applications));
+            // Basic validation
+            if (new Date(application.toDate) < new Date(application.fromDate)) {
+                showNotification('To date cannot be before from date!', 'error');
+                return;
+            }
 
-            showNotification('Leave application submitted successfully!', 'success');
-            hideApplyLeave();
-            loadStudentRequests();
+            try {
+                const response = await fetch(`${API_BASE_URL}/leaves`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(application)
+                });
+
+                if (response.ok) {
+                    showNotification('Leave application submitted successfully!', 'success');
+                    e.target.reset();
+                    hideApplyLeave();
+                    loadLeaveHistory(student.regNo); // Refresh list
+                } else {
+                    showNotification('Failed to submit application', 'error');
+                }
+            } catch (error) {
+                console.error('Submit error:', error);
+                showNotification('Error submitting application', 'error');
+            }
         };
 
         // Filters
         const filterByDate = () => {
             const filterDate = document.getElementById('filterDate').value;
+            // Client-side filtering of the table rows
             const rows = document.querySelectorAll('#studentRequestsTable tbody tr');
 
             rows.forEach(row => {
@@ -194,8 +341,9 @@
             const rows = document.querySelectorAll('#studentRequestsTable tbody tr');
 
             rows.forEach(row => {
-                const status = row.cells[5].textContent;
-                if (!filterStatus || status === filterStatus) {
+                const status = row.cells[5].textContent; // 6th column (index 5) is Status
+                // The status text is inside the span, but textContent gets it
+                if (!filterStatus || status.includes(filterStatus)) {
                     row.style.display = '';
                 } else {
                     row.style.display = 'none';

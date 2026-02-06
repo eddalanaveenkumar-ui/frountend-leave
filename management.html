@@ -7,6 +7,7 @@
     <title>Management Portal - PEC Leave Management</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 
 <body>
@@ -43,6 +44,9 @@
             <div class="dashboard-header">
                 <h2><i class="fas fa-users-cog"></i> Management Dashboard</h2>
                 <div class="user-info">
+                    <button class="btn btn-warning" onclick="openScanner()" style="width:auto; padding:8px 15px;">
+                        <i class="fas fa-qrcode"></i> Scan QR
+                    </button>
                     <button class="btn btn-success" onclick="loadManagementRequests()"
                         style="width:auto; padding:8px 15px;">
                         <i class="fas fa-sync-alt"></i> Refresh
@@ -100,6 +104,19 @@
             <button class="btn btn-danger logout-btn" onclick="logout('management')">
                 <i class="fas fa-sign-out-alt"></i> Logout
             </button>
+        </div>
+
+        <!-- Scanner Modal -->
+        <div id="scannerModal" class="modal">
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-qrcode"></i> Scan Student QR</h3>
+                    <button class="close-modal" onclick="closeScanner()">&times;</button>
+                </div>
+                <div id="reader" style="width: 100%;"></div>
+                <p style="text-align: center; margin-top: 10px; color: #666;">Point camera at the student's leave pass
+                    QR code.</p>
+            </div>
         </div>
 
     </div>
@@ -278,6 +295,82 @@
                     row.style.display = 'none';
                 }
             });
+        };
+
+        // --- Scanner Logic ---
+        let html5QrcodeScanner = null;
+
+        const openScanner = () => {
+            document.getElementById('scannerModal').classList.add('active');
+
+            // Initialize if not already
+            if (!html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5QrcodeScanner(
+                    "reader",
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    /* verbose= */ false
+                );
+                html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+            }
+        };
+
+        const closeScanner = () => {
+            document.getElementById('scannerModal').classList.remove('active');
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.clear().then(() => {
+                    html5QrcodeScanner = null;
+                }).catch(error => {
+                    console.error("Failed to clear scanner", error);
+                });
+            }
+        };
+
+        function onScanSuccess(decodedText, decodedResult) {
+            // Handle the scanned code as you like, for example:
+            console.log(`Code matched = ${decodedText}`, decodedResult);
+
+            try {
+                const data = JSON.parse(decodedText);
+                validateLeavePass(data);
+                closeScanner(); // Close scanner on success
+            } catch (e) {
+                alert("Invalid QR Code Format");
+            }
+        }
+
+        function onScanFailure(error) {
+            // handle scan failure, usually better to ignore and keep scanning.
+            // for example:
+            // console.warn(`Code scan error = ${error}`);
+        }
+
+        const validateLeavePass = (data) => {
+            // Logic similar to App
+            const now = new Date();
+            const approvedTime = new Date(data.approvedAt);
+            const timeDiff = now - approvedTime;
+            const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+            let message = '';
+            let type = 'success';
+
+            if (data.status !== 'HOD Approved') {
+                message = `❌ INVALID: Leave is ${data.status} (Not HOD Approved)`;
+                type = 'error';
+            } else if (hoursDiff > 24) {
+                message = `⚠️ EXPIRED: Approved over 24 hours ago.`;
+                type = 'warning';
+            } else {
+                message = `✅ VALID LEAVE PASS\n\nStudent: ${data.name} (${data.regNo})\nDates: ${data.fromDate} to ${data.toDate}`;
+                type = 'success';
+            }
+
+            // Using our notification system or a simple alert
+            if (type === 'success') {
+                alert(message); // Simple alert for now to show details clearly
+            } else {
+                showNotification(message, type);
+            }
         };
     </script>
 </body>

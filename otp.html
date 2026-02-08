@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Verification - Prathyusha Engineering College</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .otp-input-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .otp-input {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            font-size: 1.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .otp-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.15);
+            outline: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="screen active" style="margin-top: 5vh; max-width: 500px; margin-left: auto; margin-right: auto;">
+            <div class="header">
+                <div class="logo-container">
+                    <img src="https://i.ibb.co/QvthpzbS/logo.jpg" alt="PEC Logo" class="logo">
+                    <div>
+                        <h1>Prathyusha Engineering College</h1>
+                        <p style="color: #7f8c8d; font-size: 1.2rem;">OTP Verification</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div
+                    style="width: 80px; height: 80px; background: #e8f4fd; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                    <i class="fas fa-shield-alt" style="font-size: 2.5rem; color: var(--primary-color);"></i>
+                </div>
+                <h3 style="margin-bottom: 10px;">Enter Verification Code</h3>
+                <p style="color: #7f8c8d;">We have sent a verification code to your registered mobile number/email.</p>
+            </div>
+
+            <form id="otpForm">
+                <div class="otp-input-group">
+                    <input type="text" class="otp-input" maxlength="1" pattern="\d" required
+                        onkeyup="moveToNext(this, 'otp2')" id="otp1">
+                    <input type="text" class="otp-input" maxlength="1" pattern="\d" required
+                        onkeyup="moveToNext(this, 'otp3')" id="otp2">
+                    <input type="text" class="otp-input" maxlength="1" pattern="\d" required
+                        onkeyup="moveToNext(this, 'otp4')" id="otp3">
+                    <input type="text" class="otp-input" maxlength="1" pattern="\d" required
+                        onkeyup="moveToNext(this, 'otp5')" id="otp4">
+                    <input type="text" class="otp-input" maxlength="1" pattern="\d" required
+                        onkeyup="moveToNext(this, 'otp6')" id="otp5">
+                    <input type="text" class="otp-input" maxlength="1" pattern="\d" required id="otp6">
+                </div>
+
+                <button type="submit" class="btn">Verify & Proceed</button>
+            </form>
+
+            <div style="text-align: center; margin-top: 25px;">
+                <p style="color: #7f8c8d; margin-bottom: 10px;">dDidn't receive the code?</p>
+                <button type="button" id="resendBtn"
+                    style="background: none; border: none; color: var(--primary-color); font-weight: 600; cursor: pointer; font-size: 1rem;">
+                    Resend OTP
+                </button>
+                <div id="timer" style="margin-top: 5px; font-size: 0.9rem; color: #999;"></div>
+            </div>
+
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                <a href="index.html"
+                    style="color: var(--secondary-color); text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-arrow-left"></i> Back to Login
+                </a>
+            </div>
+        </div>
+    </div>
+    <script src="common.js"></script>
+    <script>
+        // Retrieve context from sessionStorage
+        // This expects { mobile: '...', role: '...', id: '...', user: {...} } to be set by the previous page
+        const otpContext = JSON.parse(sessionStorage.getItem('otpContext')) || {};
+        const { mobile, role, id } = otpContext;
+
+        if (mobile) {
+            // Mask mobile number for privacy (e.g., +91 ***** 1234)
+            const maskedMobile = mobile.replace(/.(?=.{4})/g, '*');
+            const messageEl = document.querySelector('.header + div p');
+            if (messageEl) {
+                messageEl.innerText = `We have sent a verification code to ${maskedMobile}`;
+            }
+        }
+
+        // Auto-focus logic for OTP inputs
+        function moveToNext(current, nextFieldId) {
+            if (current.value.length >= 1) {
+                const next = document.getElementById(nextFieldId);
+                if (next) next.focus();
+            }
+        }
+
+        // Handle backspace
+        document.querySelectorAll('.otp-input').forEach((input, index, inputs) => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && input.value === '') {
+                    if (index > 0) {
+                        inputs[index - 1].focus();
+                    }
+                }
+            });
+        });
+
+        // Timer for Resend
+        let timeLeft = 30;
+        const resendBtn = document.getElementById('resendBtn');
+        const timerDisplay = document.getElementById('timer');
+        let timerId;
+
+        function startTimer() {
+            resendBtn.style.opacity = '0.5';
+            resendBtn.style.pointerEvents = 'none';
+            timeLeft = 30;
+
+            if (timerId) clearInterval(timerId);
+
+            timerId = setInterval(() => {
+                if (timeLeft <= 0) {
+                    clearInterval(timerId);
+                    resendBtn.style.opacity = '1';
+                    resendBtn.style.pointerEvents = 'auto';
+                    timerDisplay.textContent = '';
+                } else {
+                    timerDisplay.textContent = `Resend available in ${timeLeft}s`;
+                    timeLeft--;
+                }
+            }, 1000);
+        }
+
+        startTimer();
+
+        resendBtn.addEventListener('click', async function () {
+            if (!mobile || !role || !id) {
+                showNotification('Unable to resend: Missing user details', 'error');
+                console.error('Missing otpContext:', otpContext);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role, id })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showNotification('OTP Resent Successfully!', 'success');
+                    startTimer();
+                } else {
+                    showNotification(data.error || 'Failed to resend OTP', 'error');
+                }
+            } catch (e) {
+                console.error('Resend error:', e);
+                showNotification('Network error while resending OTP', 'error');
+            }
+        });
+
+        document.getElementById('otpForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            // Collect OTP
+            let otp = '';
+            document.querySelectorAll('.otp-input').forEach(input => {
+                otp += input.value;
+            });
+
+            if (otp.length !== 6) {
+                showNotification('Please enter the complete 6-digit OTP', 'error');
+                return;
+            }
+
+            if (!mobile) {
+                showNotification('Missing mobile number context. Cannot verify.', 'error');
+                return;
+            }
+
+            const btn = this.querySelector('button[type="submit"]');
+            const originalText = btn.innerText;
+            btn.innerText = 'Verifying...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mobile, otp })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showNotification('OTP Verified Successfully!', 'success');
+
+                    // Finalize Login
+                    if (otpContext.user) {
+                        let storageKey = '';
+                        switch (role) {
+                            case 'student': storageKey = 'currentStudent'; break;
+                            case 'advisor': storageKey = 'currentAdvisor'; break;
+                            case 'hod': storageKey = 'currentHod'; break;
+                            case 'management': storageKey = 'currentManagement'; break;
+                        }
+
+                        if (storageKey) {
+                            localStorage.setItem(storageKey, JSON.stringify(otpContext.user));
+                        }
+                    }
+
+                    // Redirect logic
+                    setTimeout(() => {
+                        if (role === 'student') {
+                            window.location.href = 'student.html';
+                        } else if (['advisor', 'hod', 'management'].includes(role)) {
+                            window.location.href = `${role}.html`; // e.g. advisor.html
+                        } else {
+                            window.location.href = 'index.html';
+                        }
+                    }, 1500);
+
+                } else {
+                    showNotification(data.error || 'Invalid OTP', 'error');
+                }
+            } catch (error) {
+                console.error('Verification error:', error);
+                showNotification('Error connecting to server', 'error');
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

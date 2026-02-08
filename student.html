@@ -172,8 +172,13 @@
             e.preventDefault();
             const regNo = document.getElementById('studentRegNo').value;
             const dob = document.getElementById('studentDOB').value;
+            const btn = e.target.querySelector('button[type="submit"]');
 
             try {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+
+                // 1. Verify Credentials
                 const response = await fetch(`${API_BASE_URL}/login/student`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -183,15 +188,49 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    localStorage.setItem('currentStudent', JSON.stringify(data));
-                    checkLogin();
-                    showNotification('Welcome back!', 'success');
+                    // Credentials valid. Now verify mobile exists.
+                    if (!data.mobile) {
+                        showNotification('No mobile number linked to this account. Contact Admin.', 'error');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                        return;
+                    }
+
+                    // 2. Send OTP
+                    btn.innerHTML = '<i class="fas fa-sms"></i> Sending OTP...';
+                    const otpResponse = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ role: 'student', id: regNo })
+                    });
+
+                    if (otpResponse.ok) {
+                        // 3. Store Context and Redirect
+                        sessionStorage.setItem('otpContext', JSON.stringify({
+                            mobile: data.mobile,
+                            role: 'student',
+                            id: regNo,
+                            user: data
+                        }));
+                        showNotification('OTP Sent! Redirecting...', 'success');
+                        setTimeout(() => window.location.href = 'otp.html', 1000);
+                    } else {
+                        const otpData = await otpResponse.json();
+                        showNotification(otpData.error || 'Failed to send OTP', 'error');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                    }
+
                 } else {
-                    showNotification(data.error || 'Login failed', 'error');
+                    showNotification(data.error || 'Invalid credentials', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
                 }
             } catch (error) {
                 console.error('Login error:', error);
                 showNotification('Network error. Please try again.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
             }
         };
 

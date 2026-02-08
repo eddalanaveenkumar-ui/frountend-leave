@@ -148,26 +148,62 @@
             e.preventDefault();
             const id = document.getElementById('mUserId').value;
             const password = document.getElementById('mPassword').value;
+            const btn = e.target.querySelector('button[type="submit"]');
 
             try {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+
+                // 1. Verify Credentials
                 const response = await fetch(`${API_BASE_URL}/login/staff`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ role: 'management', id, password })
                 });
 
+                const data = await response.json();
+
                 if (response.ok) {
-                    const data = await response.json();
-                    localStorage.setItem('currentManagement', JSON.stringify(data));
-                    checkLogin();
-                    showNotification('Welcome, Management!', 'success');
+                    if (!data.mobile) {
+                        showNotification('No mobile number linked to this account.', 'error');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                        return;
+                    }
+
+                    // 2. Send OTP (Use 'id' here, matching the backend expectation for staff)
+                    btn.innerHTML = '<i class="fas fa-sms"></i> Sending OTP...';
+                    const otpResponse = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ role: 'management', id: id })
+                    });
+
+                    if (otpResponse.ok) {
+                        sessionStorage.setItem('otpContext', JSON.stringify({
+                            mobile: data.mobile,
+                            role: 'management',
+                            id: id,
+                            user: data
+                        }));
+                        showNotification('OTP Sent! Redirecting...', 'success');
+                        setTimeout(() => window.location.href = 'otp.html', 1000);
+                    } else {
+                        const otpData = await otpResponse.json();
+                        showNotification(otpData.error || 'Failed to send OTP', 'error');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                    }
                 } else {
-                    const err = await response.json();
-                    showNotification(err.error || 'Invalid credentials', 'error');
+                    showNotification(data.error || 'Invalid credentials', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
                 }
             } catch (error) {
                 console.error(error);
                 showNotification('Network error', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
             }
         };
 
